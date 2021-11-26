@@ -102,9 +102,9 @@ func (m *Massa) LoadWallet() (err error) {
 
 }
 
-func (m *Massa) Check() (need_to_buy bool) {
-	if m.ActiveRolls.IsZero() && m.CandidateRolls.IsZero() {
-		need_to_buy = true
+func (m *Massa) NeedToBuy() (need bool) {
+	if m.CandidateRolls.IsZero() { // m.ActiveRolls.IsZero()
+		need = true
 	}
 
 	return
@@ -135,15 +135,15 @@ func (m *Massa) Process() {
 		return
 	}
 
-	if m.Check() {
+	if m.NeedToBuy() && m.FinalBalance.GreaterThanOrEqual(decimal.NewFromInt(100)) {
 		if err = m.BuyRolls(); err == nil {
 			err = m.RegisterStakeKey()
 		}
 	}
 
-	if err == nil {
+	/*if err == nil {
 		m.logger.Info("No action need")
-	}
+	}*/
 
 	return
 }

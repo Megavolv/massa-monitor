@@ -17,7 +17,7 @@ func main() {
 
 	for {
 		massa.Process()
-		time.Sleep(1 * time.Minute)
+		time.Sleep(2 * time.Minute)
 	}
 
 }
