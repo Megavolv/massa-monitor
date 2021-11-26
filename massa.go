@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -18,6 +19,14 @@ type Massa struct {
 func NewMassa(log *log.Logger) (m *Massa) {
 	m = &Massa{logger: log}
 	return
+}
+
+func (m *Massa) CheckExecutable() (err error) {
+	file, err := os.Open("./massa-client")
+	if errors.Is(err, os.ErrNotExist) {
+		return errors.New("Massa executable is not found")
+	}
+	return file.Close()
 }
 
 func (m *Massa) Parse(data []string) (err error) {
