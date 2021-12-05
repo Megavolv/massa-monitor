@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/shopspring/decimal"
 	log "github.com/sirupsen/logrus"
 )
@@ -30,32 +31,32 @@ func (m *Massa) CheckExecutable() (err error) {
 }
 
 func (m *Massa) Parse(data []string) (err error) {
-	m.PrivateKey, err = space_extract(data[2], 2)
+	m.PrivateKey, err = space_extract(data[1], 2)
 	if err != nil {
 		return
 	}
 
-	m.PublicKey, err = space_extract(data[3], 2)
+	m.PublicKey, err = space_extract(data[2], 2)
 	if err != nil {
 		return
 	}
 
-	m.Address, err = space_extract(data[4], 1)
+	m.Address, err = space_extract(data[3], 1)
 	if err != nil {
 		return
 	}
 
-	m.FinalBalance, err = space_extract_dec(data[7], 2)
+	m.FinalBalance, err = space_extract_dec(data[6], 2)
 	if err != nil {
 		return
 	}
 
-	m.ActiveRolls, err = space_extract_dec(data[12], 2)
+	m.ActiveRolls, err = space_extract_dec(data[11], 2)
 	if err != nil {
 		return
 	}
 
-	m.CandidateRolls, err = space_extract_dec(data[14], 2)
+	m.CandidateRolls, err = space_extract_dec(data[13], 2)
 	if err != nil {
 		return
 	}
@@ -134,6 +135,7 @@ func (m *Massa) Process() {
 		m.logger.Error(err)
 		return
 	}
+	spew.Dump(m)
 
 	if m.NeedToBuy() && m.FinalBalance.GreaterThanOrEqual(decimal.NewFromInt(100)) {
 		if err = m.BuyRolls(); err == nil {

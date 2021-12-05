@@ -8,6 +8,7 @@ import (
 
 func main() {
 	logger := log.New()
+	logger.SetLevel(log.TraceLevel)
 	massa := NewMassa(logger)
 	err := massa.CheckExecutable()
 	if err != nil {
