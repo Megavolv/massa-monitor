@@ -2,11 +2,12 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
+	//"github.com/davecgh/go-spew/spew"
 	"github.com/shopspring/decimal"
 	log "github.com/sirupsen/logrus"
 )
@@ -135,7 +136,8 @@ func (m *Massa) Process() {
 		m.logger.Error(err)
 		return
 	}
-	spew.Dump(m)
+
+	fmt.Printf("PrivateKey: %s\n PublicKey: %s\n Address: %s\n FinalBalance: %s\n ActiveRolls: %s\n CandidateRolls: %s\n", m.PrivateKey, m.PublicKey, m.Address, m.FinalBalance.String(), m.ActiveRolls.String(), m.CandidateRolls.String())
 
 	if m.NeedToBuy() && m.FinalBalance.GreaterThanOrEqual(decimal.NewFromInt(100)) {
 		if err = m.BuyRolls(); err == nil {
