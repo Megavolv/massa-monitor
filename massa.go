@@ -104,6 +104,22 @@ func (m *Massa) LoadWallet() (err error) {
 
 }
 
+func (m *Massa) CheckAndStakeKey() (err error) {
+	m.logger.Trace("Check stake key\n")
+	d, err := m.Exec([]string{"node_get_staking_addresses"})
+	if err != nil {
+		return err
+	}
+	data := strings.Split(string(d), "\n")
+	if data[0] != m.Address {
+		m.logger.Trace("Need to stake\n")
+		err = m.RegisterStakeKey()
+	} else {
+		m.logger.Trace("Ok\n")
+	}
+	return
+}
+
 func (m *Massa) NeedToBuy() (need bool) {
 	if m.CandidateRolls.IsZero() { // m.ActiveRolls.IsZero()
 		need = true
@@ -116,7 +132,7 @@ func (m *Massa) BuyRolls() (err error) {
 	m.logger.Info("Try to buy\n")
 	data, err := m.Exec([]string{"buy_rolls", m.Address, "1", "0"})
 	if err == nil {
-		m.logger.Debug(data)
+		m.logger.Debug(string(data))
 	}
 	return
 }
@@ -125,7 +141,7 @@ func (m *Massa) RegisterStakeKey() (err error) {
 	m.logger.Info("Try to stake\n")
 	data, err := m.Exec([]string{"node_add_staking_private_keys", m.PrivateKey})
 	if err == nil {
-		m.logger.Debug(data)
+		m.logger.Debug(string(data))
 	}
 	return
 }
@@ -140,14 +156,15 @@ func (m *Massa) Process() {
 	fmt.Printf("PrivateKey: %s\n PublicKey: %s\n Address: %s\n FinalBalance: %s\n ActiveRolls: %s\n CandidateRolls: %s\n", m.PrivateKey, m.PublicKey, m.Address, m.FinalBalance.String(), m.ActiveRolls.String(), m.CandidateRolls.String())
 
 	if m.NeedToBuy() && m.FinalBalance.GreaterThanOrEqual(decimal.NewFromInt(100)) {
-		if err = m.BuyRolls(); err == nil {
-			err = m.RegisterStakeKey()
+		if err = m.BuyRolls(); err != nil {
+			m.logger.Error(err)
 		}
 	}
 
-	/*if err == nil {
-		m.logger.Info("No action need")
-	}*/
+	err = m.CheckAndStakeKey()
+	if err != nil {
+		m.logger.Error(err)
+	}
 
 	return
 }
