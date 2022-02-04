@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -12,13 +13,31 @@ import (
 )
 
 type Massa struct {
-	logger                                    *log.Logger
-	PrivateKey, PublicKey, Address            string
-	FinalBalance, ActiveRolls, CandidateRolls decimal.Decimal
+	logger                         *log.Logger
+	PrivateKey, PublicKey, Address string
+	SequentialBalance              *SequentialBalance
+	ParallelBalance                *ParallelBalance
+	Rolls                          *Rolls
+}
+
+type SequentialBalance struct {
+	Balance decimal.Decimal
+}
+
+type ParallelBalance struct {
+	Final, Candidate, Locked decimal.Decimal
+}
+
+type Rolls struct {
+	Active, Candidate, Final decimal.Decimal
 }
 
 func NewMassa(log *log.Logger) (m *Massa) {
-	m = &Massa{logger: log}
+	m = &Massa{logger: log,
+		SequentialBalance: &SequentialBalance{},
+		ParallelBalance:   &ParallelBalance{},
+		Rolls:             &Rolls{},
+	}
 	return
 }
 
@@ -40,51 +59,64 @@ func (m *Massa) IsWalletLoaded() error {
 }
 
 func (m *Massa) Parse(data []string) (err error) {
-	m.PrivateKey, err = space_extract(data[1], 2)
+	m.PrivateKey, err = space_extract(data[1])
 	if err != nil {
 		return
 	}
 
-	m.PublicKey, err = space_extract(data[2], 2)
+	m.PublicKey, err = space_extract(data[2])
 	if err != nil {
 		return
 	}
 
-	m.Address, err = space_extract(data[3], 1)
+	m.Address, err = space_extract(data[3])
 	if err != nil {
 		return
 	}
 
-	m.FinalBalance, err = space_extract_dec(data[6], 2)
+	m.SequentialBalance.Balance, err = space_extract_dec(data[6])
 	if err != nil {
 		return
 	}
 
-	m.ActiveRolls, err = space_extract_dec(data[11], 2)
+	m.ParallelBalance.Final, err = space_extract_dec(data[9])
 	if err != nil {
 		return
 	}
 
-	m.CandidateRolls, err = space_extract_dec(data[13], 2)
+	m.ParallelBalance.Candidate, err = space_extract_dec(data[10])
 	if err != nil {
 		return
 	}
+
+	m.ParallelBalance.Locked, err = space_extract_dec(data[11])
+	if err != nil {
+		return
+	}
+
+	m.Rolls.Active, err = space_extract_dec(data[14])
+	if err != nil {
+		return
+	}
+
+	m.Rolls.Final, err = space_extract_dec(data[15])
+	if err != nil {
+		return
+	}
+
+	m.Rolls.Candidate, err = space_extract_dec(data[16])
 
 	return
 }
 
-func space_extract(s string, num int) (op string, err error) {
+func space_extract(s string) (op string, err error) {
 	data := strings.Split(s, " ")
-	if len(data) < num {
-		err = errors.New("Cannot parse")
-		return
-	}
-	op = data[num]
+	op = data[len(data)-1]
 	return
 }
 
-func space_extract_dec(s string, num int) (op decimal.Decimal, err error) {
-	data, err := space_extract(s, num)
+func space_extract_dec(s string) (op decimal.Decimal, err error) {
+	data, err := space_extract(s)
 	if err != nil {
 		return
 	}
@@ -128,7 +160,7 @@ func (m *Massa) CheckAndStakeKey() (err error) {
 }
 
 func (m *Massa) NeedToBuy() (need bool) {
-	if m.CandidateRolls.IsZero() { // m.ActiveRolls.IsZero()
+	if m.ParallelBalance.Candidate.IsZero() { // m.ActiveRolls.IsZero()
 		need = true
 	}
 
@@ -160,9 +192,14 @@ func (m *Massa) Process() {
 		return
 	}
 
-	fmt.Printf("PrivateKey: %s\n PublicKey: %s\n Address: %s\n FinalBalance: %s\n ActiveRolls: %s\n CandidateRolls: %s\n", m.PrivateKey, m.PublicKey, m.Address, m.FinalBalance.String(), m.ActiveRolls.String(), m.CandidateRolls.String())
+	empJSON, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		m.logger.Error(err.Error())
+	}
 
-	if m.NeedToBuy() && m.FinalBalance.GreaterThanOrEqual(decimal.NewFromInt(100)) {
+	fmt.Println(string(empJSON))
+
+	if m.NeedToBuy() && m.ParallelBalance.Final.GreaterThanOrEqual(decimal.NewFromInt(100)) {
 		if err = m.BuyRolls(); err != nil {
 			m.logger.Error(err)
 		}
