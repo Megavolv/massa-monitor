@@ -30,6 +30,15 @@ func (m *Massa) CheckExecutable() (err error) {
 	return file.Close()
 }
 
+func (m *Massa) IsWalletLoaded() error {
+	if len(m.PrivateKey) > 0 &&
+		len(m.PublicKey) > 0 &&
+		len(m.Address) > 0 {
+		return nil
+	}
+	return errors.New("Wallet loading serror")
+}
+
 func (m *Massa) Parse(data []string) (err error) {
 	m.PrivateKey, err = space_extract(data[1], 2)
 	if err != nil {
@@ -91,13 +100,12 @@ func (m *Massa) LoadWallet() (err error) {
 	m.logger.Trace("Load wallet\n")
 	d, err := m.Exec([]string{"wallet_info"})
 	data := strings.Split(string(d), "\n")
-	if len(data) != 22 {
-		m.logger.Debug(data)
-		err = errors.New("Not 22 lines in output")
-		return
-	}
 
 	err = m.Parse(data)
+
+	if err == nil {
+		return m.IsWalletLoaded()
+	}
 
 	return
 
