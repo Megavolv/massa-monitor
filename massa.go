@@ -21,7 +21,8 @@ type Massa struct {
 }
 
 type SequentialBalance struct {
-	Balance decimal.Decimal
+	Candidate decimal.Decimal
+	Final     decimal.Decimal
 }
 
 type ParallelBalance struct {
@@ -59,6 +60,8 @@ func (m *Massa) IsWalletLoaded() error {
 }
 
 func (m *Massa) Parse(data []string) (err error) {
+	m.logger.Info(data)
+
 	m.PrivateKey, err = space_extract(data[1])
 	if err != nil {
 		return
@@ -74,37 +77,41 @@ func (m *Massa) Parse(data []string) (err error) {
 		return
 	}
 
-	m.SequentialBalance.Balance, err = space_extract_dec(data[6])
+	/*	m.SequentialBalance.Final, err = space_extract_dec(data[6])
+		if err != nil {
+			return
+		}*/
+
+	m.logger.Trace("Parse m.ParallelBalance.Final", data[12])
+	m.ParallelBalance.Final, err = space_extract_dec(data[12])
 	if err != nil {
 		return
 	}
 
-	m.ParallelBalance.Final, err = space_extract_dec(data[9])
+	/*	m.ParallelBalance.Candidate, err = space_extract_dec(data[10])
+		if err != nil {
+			return
+		}
+
+		m.ParallelBalance.Locked, err = space_extract_dec(data[11])
+		if err != nil {
+			return
+		}
+	*/
+	m.logger.Trace("Parse m.Rolls.Active", data[17])
+	m.Rolls.Active, err = space_extract_dec(data[17])
 	if err != nil {
 		return
 	}
 
-	m.ParallelBalance.Candidate, err = space_extract_dec(data[10])
+	m.logger.Trace("Parse m.Rolls.Final", data[18])
+	m.Rolls.Final, err = space_extract_dec(data[18])
 	if err != nil {
 		return
 	}
 
-	m.ParallelBalance.Locked, err = space_extract_dec(data[11])
-	if err != nil {
-		return
-	}
-
-	m.Rolls.Active, err = space_extract_dec(data[14])
-	if err != nil {
-		return
-	}
-
-	m.Rolls.Final, err = space_extract_dec(data[15])
-	if err != nil {
-		return
-	}
-
-	m.Rolls.Candidate, err = space_extract_dec(data[16])
+	m.logger.Trace("Parse m.Rolls.Candidate", data[19])
+	m.Rolls.Candidate, err = space_extract_dec(data[19])
 
 	return
 }
@@ -118,9 +125,15 @@ func space_extract(s string) (op string, err error) {
 func space_extract_dec(s string) (op decimal.Decimal, err error) {
 	data, err := space_extract(s)
 	if err != nil {
+		err = errors.New(err.Error() + " on " + s)
 		return
 	}
-	return decimal.NewFromString(data)
+	op, err = decimal.NewFromString(data)
+	if err != nil {
+		err = errors.New(err.Error() + " on " + s)
+	}
+
+	return
 }
 
 func (m *Massa) Exec(opts []string) ([]byte, error) {
@@ -160,15 +173,11 @@ func (m *Massa) CheckAndStakeKey() (err error) {
 }
 
 func (m *Massa) NeedToBuy() (need bool) {
-	if m.ParallelBalance.Candidate.IsZero() { // m.ActiveRolls.IsZero()
-		need = true
-	}
-
-	return
+	return m.Rolls.Candidate.IsZero()
 }
 
 func (m *Massa) BuyRolls() (err error) {
-	m.logger.Info("Try to buy\n")
+	m.logger.Warn("Try to buy\n")
 	data, err := m.Exec([]string{"buy_rolls", m.Address, "1", "0"})
 	if err == nil {
 		m.logger.Debug(string(data))
@@ -195,14 +204,20 @@ func (m *Massa) Process() {
 	empJSON, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		m.logger.Error(err.Error())
+		return
 	}
 
 	fmt.Println(string(empJSON))
 
+	m.logger.Info("ParallelBalance.Final:", m.ParallelBalance.Final.String())
+
 	if m.NeedToBuy() && m.ParallelBalance.Final.GreaterThanOrEqual(decimal.NewFromInt(100)) {
 		if err = m.BuyRolls(); err != nil {
 			m.logger.Error(err)
+		} else {
 		}
+	} else {
+
 	}
 
 	err = m.CheckAndStakeKey()
