@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/shopspring/decimal"
@@ -61,6 +62,10 @@ func (m *Massa) IsWalletLoaded() error {
 
 func (m *Massa) Parse(data []string) (err error) {
 	m.logger.Info(data)
+
+	if len(data) < 18 {
+		return errors.New("len(data)=" + strconv.Itoa(len(data)))
+	}
 
 	m.PrivateKey, err = space_extract(data[1])
 	if err != nil {
